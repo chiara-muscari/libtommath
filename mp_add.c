@@ -6,10 +6,9 @@
 /* high level addition (handles signs) */
 mp_err mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 {
-	if (MP_DIGIT_BIT == 32) {
+	if (MP_DIGIT_BIT == 32) { // Only unsigned version is supported
 	#ifdef STM32
 		mp_err err = MP_OKAY;
-		char msg[200];
 		volatile uint32_t max_num_digits;
 		volatile uint32_t base_address_op1, base_address_op2, base_address_res, limit_1, limit_2;
 

@@ -70,7 +70,7 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
 
    /* Back off if it's too big */
    while (mp_cmp(x, m) != MP_LT) {
-      if ((err = s_mp_sub(x, m, x)) != MP_OKAY) {
+      if ((err = mp_sub(x, m, x)) != MP_OKAY) {
          goto LBL_ERR;
       }
    }
