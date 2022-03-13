@@ -6,7 +6,6 @@ NUM_BITS=32
 ASM_OPT='True'
 
 OLD_TEXT_MAIN="//#include \"../libtommath/Testing/Example_test_vectors/${OPERATION}/test_vec_${NUM_BITS}.h\""
-
 NEW_TEXT_MAIN="#include \"../libtommath/Testing/Example_test_vectors/${OPERATION}/test_vec_${NUM_BITS}.h\""
 
 PROJECT_NAME="barrett_reduction"

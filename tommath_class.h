@@ -1019,6 +1019,8 @@
 #   define MP_REDUCE_2K_SETUP_L_C
 #   define MP_REDUCE_C
 #   define MP_REDUCE_SETUP_C
+#   define MP_REDUCE_FOLDED_C
+#   define MP_REDUCE_FOLDED_SETUP_C
 #   define MP_SET_C
 #endif
 
