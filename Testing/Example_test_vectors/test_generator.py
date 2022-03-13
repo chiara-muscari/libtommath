@@ -100,7 +100,7 @@ def gen_h_file(num_bits, operands):
 	MAX_BIT_LENGTH_LOG = 12
 
 	file_name = f"test_vec_{num_bits}.h"
-	path = os.path.join('add/', file_name)
+	path = os.path.join('reduction/', file_name)
 	fp = open(path, 'w')
 
 	header = ""
@@ -155,13 +155,13 @@ def gen_h_file(num_bits, operands):
 
 def main(): 
 
-	OPERATION = "+"
+	OPERATION = "%"
 
 	# Assume numbers between 2**8 and 2**13 bits, so keep the range in [8, 13]
 	MIN_BIT_LENGTH_LOG = 8
 	MAX_BIT_LENGTH_LOG = 13
 
-	n_bits_per_digit = 32
+	n_bits_per_digit = 28
 
 	### Patterns:
 	patterns = []
@@ -208,7 +208,7 @@ def main():
 	res_list = []
 
 	for bit_length_log in range(MIN_BIT_LENGTH_LOG, MAX_BIT_LENGTH_LOG):
-		op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, 32, OPERATION, patterns, num_tests)
+		op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, n_bits_per_digit, OPERATION, patterns, num_tests)
 		op1_list.extend(op1_tmp)
 		op2_list.extend(op2_tmp)
 		res_list.extend(res_tmp)
@@ -216,8 +216,7 @@ def main():
 
 	operands = {"OP1" : op1_list, "OP2" : op2_list, "RES" : res_list, "NUM_TESTS" : num_tests_tot}
 
-	gen_h_file(32, operands)
-	#gen_h_file(28, 10, "*")
+	gen_h_file(n_bits_per_digit, operands)
 
 
 if __name__ == '__main__':
