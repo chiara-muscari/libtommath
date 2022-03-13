@@ -12,6 +12,9 @@
 #  include <stdio.h>
 #endif
 
+#define STM32
+#define MP_32BIT
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -68,9 +71,11 @@ typedef uint32_t             mp_digit;
  * Up to 8 limbs, 248 bits instead of up to 512 limbs, 15872 bits with MP_28BIT.
  */
 #      define MP_DIGIT_BIT 31
-#   else
-/* default case is 28-bit digits, defines MP_28BIT as a handy macro to test */
+#   elif defined(MP_32BIT)
 #      define MP_DIGIT_BIT 32
+/* default case is 28-bit digits, defines MP_28BIT as a handy macro to test */
+	#else
+#      define MP_DIGIT_BIT 28
 #      define MP_28BIT
 #   endif
 #endif

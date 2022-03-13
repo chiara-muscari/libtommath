@@ -276,7 +276,5 @@ extern MP_PRIVATE const mp_digit s_mp_prime_tab[];
         return mp_isneg(a) ? (type)-res : (type)res;          \
     }
 
-#define STM32
-
 
 #endif
