@@ -20,9 +20,11 @@ mp_err s_mp_div_school(const mp_int *a, const mp_int *b, mp_int *c, mp_int *d)
 {
    mp_int q, x, y, t1, t2;
    int n, t, i, norm;
+   mp_int temp;
    bool neg;
    mp_err err;
 
+   mp_init(&temp);
    if ((err = mp_init_size(&q, a->used + 2)) != MP_OKAY) {
       return err;
    }
@@ -98,8 +100,13 @@ mp_err s_mp_div_school(const mp_int *a, const mp_int *b, mp_int *c, mp_int *d)
          t1.dp[0] = ((t - 1) < 0) ? 0u : y.dp[t - 1];
          t1.dp[1] = y.dp[t];
          t1.used = 2;
-         if ((err = mp_mul_d(&t1, q.dp[(i - t) - 1], &t1)) != MP_OKAY)   goto LBL_Y;
+#ifdef	MP_32BIT
 
+         mp_set(&temp, q.dp[(i - t) - 1]);
+         if ((err = mp_mul(&t1, &temp, &t1)) != MP_OKAY)   goto LBL_Y;
+#else
+         if ((err = mp_mul_d(&t1, q.dp[(i - t) - 1], &t1)) != MP_OKAY)   goto LBL_Y;
+#endif
          /* find right hand */
          t2.dp[0] = ((i - 2) < 0) ? 0u : x.dp[i - 2];
          t2.dp[1] = x.dp[i - 1]; /* i >= 1 always holds */
@@ -108,7 +115,12 @@ mp_err s_mp_div_school(const mp_int *a, const mp_int *b, mp_int *c, mp_int *d)
       } while (mp_cmp_mag(&t1, &t2) == MP_GT);
 
       /* step 3.3 x = x - q{i-t-1} * y * b**{i-t-1} */
+#ifdef	MP_32BIT
+      mp_set(&temp, q.dp[(i - t) - 1]);
+      if ((err = mp_mul(&y, &temp, &t1)) != MP_OKAY)   goto LBL_Y;
+#else
       if ((err = mp_mul_d(&y, q.dp[(i - t) - 1], &t1)) != MP_OKAY)       goto LBL_Y;
+#endif
       if ((err = mp_lshd(&t1, (i - t) - 1)) != MP_OKAY)                  goto LBL_Y;
       if ((err = mp_sub(&x, &t1, &x)) != MP_OKAY)                        goto LBL_Y;
 
@@ -150,6 +162,7 @@ LBL_T1:
    mp_clear(&t1);
 LBL_Q:
    mp_clear(&q);
+   mp_clear(&temp);
    return err;
 }
 

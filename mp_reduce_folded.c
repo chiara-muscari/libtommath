@@ -44,15 +44,14 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
 		 goto LBL_ERR;
 	 }
 
+   // From now on, it's like the standard reduce func
 
-   /////// From now on, it's like the standard reduce func
    mp_copy(&x_p, &q);
 
    /*q = floor(x_p / 2**um)*/
    mp_rshd(&q, um);
 
    /* q = q * mu */
-
 
    if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
 		 goto LBL_ERR;
@@ -63,26 +62,10 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
    /* q = q / b**(k/2) */
    mp_rshd(&q, s);
 
-
-
-   ////
    /* q = q * m mod b**(k+2), quick (no division) */
-
-   if ((err = mp_mul(&q, m, &q)) != MP_OKAY) {
+   if ((err = s_mp_mul(&q, m, &q, um + 2)) != MP_OKAY) {
       goto LBL_ERR;
    }
-
-   if ((err = mp_mod_2d(&q, MP_DIGIT_BIT * (um + 2), &q)) != MP_OKAY) {
-      goto LBL_ERR;
-   }
-
-   /*
-   if ((err = mp_mul_upNdig(&q, m, &q, um + 2)) != MP_OKAY) {
-      goto LBL_ERR;
-   }
-   */
-
-   ////
 
    if ((err = mp_mod_2d(&x_p, MP_DIGIT_BIT * (um + 2), &x_p)) != MP_OKAY) {
       goto LBL_ERR;

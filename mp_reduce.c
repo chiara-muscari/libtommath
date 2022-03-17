@@ -21,6 +21,11 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
    /* q1 = x / b**(k-1)  */
    mp_rshd(&q, um - 1);
 
+#ifdef MP_32BIT
+   if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
+      goto LBL_ERR;
+   }
+#else
    /* according to HAC this optimization is ok */
    if ((mp_digit)um > ((mp_digit)1 << (MP_DIGIT_BIT - 1))) {
       if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
@@ -38,6 +43,7 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
       err = MP_VAL;
       goto LBL_ERR;
    }
+#endif
 
    /* q3 = q2 / b**(k+1) */
    mp_rshd(&q, um + 1);
@@ -47,11 +53,31 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
       goto LBL_ERR;
    }
 
+
    /* q = q * m mod b**(k+1), quick (no division) */
    if ((err = s_mp_mul(&q, m, &q, um + 1)) != MP_OKAY) {
       goto LBL_ERR;
    }
 
+#ifdef MP_32BIT
+   if(mp_cmp_mag(x, &q) == MP_LT) {
+		mp_int tmp;
+		mp_init(&tmp);
+		mp_set(&tmp, 1uL);
+		if ((err = mp_lshd(&tmp, um + 1)) != MP_OKAY) {
+		  goto LBL_ERR;
+		}
+		if ((err = mp_add(x, &tmp, x)) != MP_OKAY) {
+		  goto LBL_ERR;
+		}
+		mp_clear(&tmp);
+   }
+   /* x = x - q */
+   if ((err = mp_sub(x, &q, x)) != MP_OKAY) {
+      goto LBL_ERR;
+   }
+
+#else
    /* x = x - q */
    if ((err = mp_sub(x, &q, x)) != MP_OKAY) {
       goto LBL_ERR;
@@ -67,6 +93,7 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
          goto LBL_ERR;
       }
    }
+#endif
 
    /* Back off if it's too big */
    while (mp_cmp(x, m) != MP_LT) {

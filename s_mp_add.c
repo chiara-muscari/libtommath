@@ -14,38 +14,44 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
    mp_err err;
 
 #ifdef STM32
-	volatile uint32_t max_num_digits;
 	volatile uint32_t base_address_op1, base_address_op2, base_address_res, limit_1, limit_2;
 #endif
 
    /* find sizes, we let |a| <= |b| which means we have to sort
     * them.  "x" will point to the input with the most digits
     */
-   if (a->used < b->used) {
-      MP_EXCH(const mp_int *, a, b);
-   }
 
-   min = b->used;
-   max = a->used;
+	if(a->used >= b->used) {
+		max = a->used;
+		min = b->used;
+#ifdef STM32
+		base_address_op1 = &(a->dp[0]);
+		base_address_op2 = &(b->dp[0]);
+		limit_1 = &(a->dp[b->used-1]);
+		limit_2 = &(a->dp[a->used-1]);
+#endif
+	}
+	else {
+		max = b->used;
+		min = a->used;
+#ifdef STM32
+		base_address_op1 = &(b->dp[0]);
+		base_address_op2 = &(a->dp[0]);
+		limit_1 = &(b->dp[a->used-1]);
+		limit_2 = &(b->dp[b->used-1]);
+#endif
+	}
 
-   /* init result */
-   if ((err = mp_grow(c, max + 1)) != MP_OKAY) {
-      return err;
-   }
-
-   /* get old used digit count and set new one */
-   oldused = c->used;
-   c->used = max + 1;
+	/* init result */
+	if ((err = mp_grow(c, max + 1)) != MP_OKAY) {
+	  return err;
+	}
+	/* get old used digit count and set new one */
+	oldused = c->used;
+	c->used = max + 1;
 
 #ifdef STM32
-
-	base_address_op1 = &(a->dp[0]);
-	base_address_op2 = &(b->dp[0]);
-	max_num_digits = a->used;
-	limit_1 = &(a->dp[b->used-1]);
-	limit_2 = &(a->dp[a->used-1]);
 	base_address_res = &(c->dp[0]);
-
 	__asm__ volatile (
 					"MOV %%r3, %0;"
 					"MOV %%r4, %1;"

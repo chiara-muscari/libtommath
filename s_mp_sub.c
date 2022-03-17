@@ -14,7 +14,6 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
    mp_err err;
 
 #ifdef STM32
-	volatile uint32_t max_num_digits;
 	volatile uint32_t base_address_op1, base_address_op2, base_address_res, limit_1, limit_2;
 #endif
 
@@ -30,7 +29,7 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 
 	base_address_op1 = &(a->dp[0]);
 	base_address_op2 = &(b->dp[0]);
-	max_num_digits = a->used;
+	max = a->used;
 	limit_1 = &(a->dp[b->used-1]);
 	limit_2 = &(a->dp[a->used-1]);
 
