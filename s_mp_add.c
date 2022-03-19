@@ -46,9 +46,7 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 	if ((err = mp_grow(c, max + 1)) != MP_OKAY) {
 	  return err;
 	}
-	/* get old used digit count and set new one */
-	oldused = c->used;
-	c->used = max + 1;
+
 
 #ifdef STM32
 	base_address_res = &(c->dp[0]);
@@ -135,6 +133,7 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
     */
    if (min != max) {
       for (; i < max; i++) {
+    	  if(a->used >= b->used) {
 #ifdef	MP_32BIT
 			tmp0 = a->dp[i] + u;
 			if(tmp0 < a->dp[i]) {
@@ -154,6 +153,28 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
          /* take away carry bit from T[i] */
          c->dp[i] &= MP_MASK;
 #endif
+    	 }
+         else {
+#ifdef	MP_32BIT
+			tmp0 = b->dp[i] + u;
+			if(tmp0 < b->dp[i]) {
+				u = 1;
+			}
+			else {
+				u = 0;
+			}
+			c->dp[i] = tmp0;
+#else
+         /* T[i] = A[i] + U */
+         c->dp[i] = b->dp[i] + u;
+
+         /* U = carry bit of T[i] */
+         u = c->dp[i] >> (mp_digit)MP_DIGIT_BIT;
+
+         /* take away carry bit from T[i] */
+         c->dp[i] &= MP_MASK;
+#endif
+         }
       }
    }
 
@@ -161,6 +182,9 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
    c->dp[i] = u;
 
 #endif
+	/* get old used digit count and set new one */
+	oldused = c->used;
+	c->used = max + 1;
 
    /* clear digits above oldused */
    s_mp_zero_digs(c->dp + c->used, oldused - c->used);
