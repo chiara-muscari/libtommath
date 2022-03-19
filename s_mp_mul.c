@@ -17,6 +17,7 @@ mp_err s_mp_mul(const mp_int *a, const mp_int *b, mp_int *c, int digs)
 #ifdef MP_32BIT
    mp_digit u, v;
    volatile uint32_t op1, op2, op3, op4, op5, i;
+   volatile bool ok_carry;
 #else
    /* can we use the fast multiplier? */
 
@@ -35,45 +36,51 @@ mp_err s_mp_mul(const mp_int *a, const mp_int *b, mp_int *c, int digs)
 
 #ifdef STM32
 
-
-
 	for(i = 0; i < a->used ; i++) {
 		op1 = a->dp[i];
 		op2 = &(t.dp[i]);
 		op3 = &(b->dp[0]);
-		op4 = (b->used) < (digs - i) ? (b->used) : (digs - i);
+		if(b->used < digs - i) {
+			op4 = b->used;
+			ok_carry = true;
+		}
+		else {
+			op4 = digs - i;
+			ok_carry = false;
+		}
 		op5 = &(t.dp[i+op4]);
 		__asm__ volatile (
-				"MOV %%r4, %2;" // op3
-				"MOV %%r5, $0;" // j index
-				"MOV %%r8, %4;"
-				"MOV %%r0, %0;" // op1
-				"MOV %%r1, %1;" // op2
+				"MOV %%r4, %2;" // &(b->dp[0]);
+				"MOV %%r1, %1;" // &(t.dp[i]);
 				"MOV %%r3, $0;" // v
 
 				"LOOP_0:"
 				"MOV %%r2, $0;" // u, k
 
-				"LDR %%r6, [%%r4, %%r5];"
-				"UMLAL %%r3, %%r2, %%r0, %%r6;"
+				"LDR %%r6, [%%r4];"
+				"UMLAL %%r3, %%r2, %0, %%r6;"
 
-				"LDR %%r6, [%%r1, %%r5];"
+				"LDR %%r6, [%%r1];"
 				"ADDS %%r6, %%r6, %%r3;"
 				"ADC %%r2, $0;" //k
-				"STR %%r6, [%%r1, %%r5];"
-				"MOV %%r3, %%r2;"
-				"ADD %%r5, %%r5, $4;"
 
-				"LSRS %%r6, %%r5, $2;"
-				"SUB %%r6, %3, %%r6;"
+				"STR %%r6, [%%r1];"
+				"MOV %%r3, %%r2;"
+				"ADD %%r4, %%r4, $4;"
+				"ADD %%r1, %%r1, $4;"
+
+				"SUB %%r6, %3, %%r1;"
 				"CBZ %%r6, EXIT_0;"
 				"B LOOP_0;"
 				"EXIT_0:"
-				"STR %%r2, [%%r8];"
+				"MOV %%r6, %4;"
+				"CBZ %%r6, EXIT_1;"
+				"STR %%r2, [%3];"
+				"EXIT_1:"
 
 				:
-				: "r" (op1), "r" (op2), "r" (op3), "r" (op4), "r" (op5)
-				: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r8", "memory", "cc"
+				: "r" (op1), "r" (op2), "r" (op3), "r" (op5), "r" (ok_carry)
+				: "r1", "r2", "r3", "r4", "r6", "memory", "cc"
 
 		);
 	}
