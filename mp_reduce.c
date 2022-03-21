@@ -22,7 +22,8 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
    mp_rshd(&q, um - 1);
 
 #ifdef MP_32BIT
-   if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
+   if ((err = s_mp_mul_high(&q, mu, &q, um)) != MP_OKAY) {
+   //if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
       goto LBL_ERR;
    }
 #else
@@ -61,16 +62,9 @@ mp_err mp_reduce(mp_int *x, const mp_int *m, const mp_int *mu)
 
 #ifdef MP_32BIT
    if(mp_cmp_mag(x, &q) == MP_LT) {
-		mp_int tmp;
-		mp_init(&tmp);
-		mp_set(&tmp, 1uL);
-		if ((err = mp_lshd(&tmp, um + 1)) != MP_OKAY) {
-		  goto LBL_ERR;
-		}
-		if ((err = mp_add(x, &tmp, x)) != MP_OKAY) {
-		  goto LBL_ERR;
-		}
-		mp_clear(&tmp);
+	   mp_grow(x, um+3);
+	   x->dp[um+2] = 1;
+	   x->used = um+3;
    }
    /* x = x - q */
    if ((err = mp_sub(x, &q, x)) != MP_OKAY) {
