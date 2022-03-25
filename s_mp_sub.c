@@ -30,8 +30,8 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 	base_address_op1 = &(a->dp[0]);
 	base_address_op2 = &(b->dp[0]);
 	max = a->used;
-	limit_1 = &(a->dp[b->used-1]);
-	limit_2 = &(a->dp[a->used-1]);
+	limit_1 = min;
+	limit_2 = max-min+1;
 
 	base_address_res = &(c->dp[0]);
 
@@ -40,8 +40,8 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 					"MOV %%r3, %0;"
 					"MOV %%r4, %1;"
 					"MOV %%r5, %2;"
-					"MOV %%r8, %3;"
-					"MOV %%r9, %4;"
+					"MOV %%r6, %3;"
+					"MOV %%r7, %4;"
 
 					"LDR %%r0, [%%r3];"
 					"LDR %%r1, [%%r4];"
@@ -49,8 +49,8 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 					"STR %%r2, [%%r5];"
 
 					"LOOP_1:"
-					"SUB %%r2, %%r8, %%r3;"
-					"CBZ %%r2, LOOP_2;"
+					"SUB %%r6, %%r6, $1;"
+					"CBZ %%r6, LOOP_2;"
 
 					"ADD %%r3, %%r3, $4;"
 					"ADD %%r4, %%r4, $4;"
@@ -63,8 +63,8 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 					"B LOOP_1;"
 
 					"LOOP_2:"
-					"SUB %%r2, %%r9, %%r3;"
-					"CBZ %%r2, EXIT_2;"
+					"SUB %%r7, %%r7, $1;" // Check for end of loop
+					"CBZ %%r7, EXIT_2;"
 					"ADD %%r3, %%r3, $4;"
 					"ADD %%r5, %%r5, $4;"
 					"LDR %%r2, [%%r3];"
@@ -82,7 +82,7 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 					:
 					:"r" (base_address_op1), "r" (base_address_op2),
 						 "r" (base_address_res), "r" (limit_1), "r" (limit_2)
-					: "r0", "r1", "r2", "r3", "r4", "r5", "r8", "r9", "memory", "cc");
+					: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "memory", "cc");
 #else
 
    /* set carry to zero */
