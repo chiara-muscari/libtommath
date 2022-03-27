@@ -35,22 +35,21 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 
 	base_address_res = &(c->dp[0]);
 
-
+	// Note that in ARM asm the carry is set whenever there is no borrow and clear whenever there is
 	__asm__ volatile (
 					"MOV %%r3, %0;"
 					"MOV %%r4, %1;"
 					"MOV %%r5, %2;"
 					"MOV %%r6, %3;"
-					"MOV %%r7, %4;"
 
 					"LDR %%r0, [%%r3];"
 					"LDR %%r1, [%%r4];"
-					"SUBS %%r2, %%r0, %% r1 ;"
+					"SUBS %%r2, %%r0, %%r1 ;"
 					"STR %%r2, [%%r5];"
 
 					"LOOP_1:"
 					"SUB %%r6, %%r6, $1;"
-					"CBZ %%r6, LOOP_2;"
+					"CBZ %%r6, EXIT_1;"
 
 					"ADD %%r3, %%r3, $4;"
 					"ADD %%r4, %%r4, $4;"
@@ -62,27 +61,27 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 					"STR %%r2, [%%r5];"
 					"B LOOP_1;"
 
+					"EXIT_1:"
+					"MOV %%r6, %4;"
+
 					"LOOP_2:"
-					"SUB %%r7, %%r7, $1;" // Check for end of loop
-					"CBZ %%r7, EXIT_2;"
+					"IT CS;"
+					"BCS EXIT_2;"
+					"SUB %%r6, %%r6, $1;" // Check for end of loop
+					"CBZ %%r6, EXIT_2;"
 					"ADD %%r3, %%r3, $4;"
 					"ADD %%r5, %%r5, $4;"
 					"LDR %%r2, [%%r3];"
 					"SBCS %%r2, $0 ;"
 					"STR %%r2, [%%r5];"
-
 					"B LOOP_2;"
-					"EXIT_2:"
-					"ADD %%r5, %%r5, $4;"
-					"MOV %%r2, $0;"
-					"SBCS %%r2, $0;"
-					"STR %%r2, [%%r5];"
 
+					"EXIT_2:"
 
 					:
 					:"r" (base_address_op1), "r" (base_address_op2),
 						 "r" (base_address_res), "r" (limit_1), "r" (limit_2)
-					: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "memory", "cc");
+					: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "memory", "cc");
 #else
 
    /* set carry to zero */

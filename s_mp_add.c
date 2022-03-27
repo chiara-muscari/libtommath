@@ -27,8 +27,6 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 #ifdef STM32
 		base_address_op1 = &(a->dp[0]);
 		base_address_op2 = &(b->dp[0]);
-		//limit_1 = &(a->dp[b->used-1]);
-		//limit_2 = &(a->dp[a->used-1]);
 #endif
 	}
 	else {
@@ -37,8 +35,6 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 #ifdef STM32
 		base_address_op1 = &(b->dp[0]);
 		base_address_op2 = &(a->dp[0]);
-		//limit_1 = &(b->dp[a->used-1]);
-		//limit_2 = &(b->dp[b->used-1]);
 #endif
 	}
 
@@ -57,7 +53,7 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 					"MOV %%r4, %1;"
 					"MOV %%r5, %2;"
 					"MOV %%r6, %3;"
-					"MOV %%r7, %4;"
+
 
 					"LDR %%r0, [%%r3];" // Load 1st operand
 					"LDR %%r1, [%%r4];" // Load 2nd operand
@@ -66,9 +62,9 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 
 					"LOOP_1:" // Check for loop limitation
 					"SUB %%r6, %%r6, $1;"
-					"CBZ %%r6, LOOP_2;"
+					"CBZ %%r6, EXIT_1;"
 
-					"ADD %%r3, %%r3, $4;" // Increase the address
+					"ADD %%r3, %%r3, $4;" // Increase the addresses
 					"ADD %%r4, %%r4, $4;"
 					"ADD %%r5, %%r5, $4;"
 
@@ -78,27 +74,31 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 					"STR %%r2, [%%r5];"
 					"B LOOP_1;"
 
+					"EXIT_1:"
+					"MOV %%r6, %4;"
 					"LOOP_2:" // Now just the carry propagation has to be computed
-					"SUB %%r7, %%r7, $1;" // Check for end of loop
-					"CBZ %%r7, EXIT_2;"
-					"ADD %%r3, %%r3, $4;" // Increase the address
+					"IT CC;"
+					"BCC EXIT_3;"
+
+					"SUB %%r6, %%r6, $1;" // Check for end of loop
+					"CBZ %%r6, EXIT_2;"
+					"ADD %%r3, %%r3, $4;" // Increase the addresses
 					"ADD %%r5, %%r5, $4;"
 					"LDR %%r2, [%%r3];"
 					"ADCS %%r2, $0 ;"
 					"STR %%r2, [%%r5];"
-
 					"B LOOP_2;"
+
 					"EXIT_2:"
 					"ADD %%r5, %%r5, $4;"
-					"MOV %%r2, $0;"
-					"ADCS %%r2, $0;"
+					"MOV %%r2, $1;"
 					"STR %%r2, [%%r5];"
-
+					"EXIT_3:"
 
 					:
 					:"r" (base_address_op1), "r" (base_address_op2),
 						 "r" (base_address_res), "r" (limit_1), "r" (limit_2)
-					: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7", "memory", "cc");
+					: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "memory", "cc");
 #else
 
    /* zero the carry */
