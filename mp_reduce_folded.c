@@ -51,8 +51,8 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
 
    /* q = q * mu */
 
-   if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
-   //if ((err = s_mp_mul_high(&q, mu, &q, s-1)) != MP_OKAY) {
+   //if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
+   if ((err = s_mp_mul_high(&q, mu, &q, s-1)) != MP_OKAY) {
 		 goto LBL_ERR;
 	 }
 
