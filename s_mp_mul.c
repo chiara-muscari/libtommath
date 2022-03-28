@@ -15,9 +15,12 @@ mp_err s_mp_mul(const mp_int *a, const mp_int *b, mp_int *c, int digs)
    mp_word m;
 
 #ifdef MP_32BIT
+#ifndef STM32
    mp_digit u, v;
-   volatile uint32_t op1, op2, op3, op4, op5, i;
+#else
+   volatile uint32_t op1, result_address, op2_address, limit_loop, result_address_limit, i;
    volatile bool ok_carry;
+#endif
 #else
    /* can we use the fast multiplier? */
 
@@ -35,55 +38,57 @@ mp_err s_mp_mul(const mp_int *a, const mp_int *b, mp_int *c, int digs)
 
 
 #ifdef STM32
-
+   /* Asm implementation of the under-mentioned multiplication algorithm */
 	for(i = 0; i < a->used ; i++) {
 		op1 = a->dp[i];
-		op2 = &(t.dp[i]);
-		op3 = &(b->dp[0]);
+		result_address = &(t.dp[i]);
+		op2_address = &(b->dp[0]);
 		if(b->used < digs - i) {
-			op4 = b->used;
+			limit_loop = b->used;
 			ok_carry = true;
 		}
 		else {
-			op4 = digs - i;
+			limit_loop = digs - i;
 			ok_carry = false;
 		}
-		op5 = &(t.dp[i+op4]);
+		result_address_limit = &(t.dp[i+limit_loop]);
 		__asm__ volatile (
-				"MOV %%r4, %2;" // &(b->dp[0]);
-				"MOV %%r1, %1;" // &(t.dp[i]);
-				"MOV %%r3, $0;" // v
+			//Load the variables in cpu registers
+			"MOV %%r4, %2;" // op2_address
+			"MOV %%r1, %1;" // result_address
+			"MOV %%r3, $0;" // v
 
-				"LOOP_0:"
-				"MOV %%r2, $0;" // u, k
+			"LOOP_0:"
+			"MOV %%r2, $0;" // u
 
-				"LDR %%r6, [%%r4];"
-				"UMLAL %%r3, %%r2, %0, %%r6;"
+			"LDR %%r6, [%%r4];"
+			"UMLAL %%r3, %%r2, %0, %%r6;" // Multiply and add up to the column sum
 
-				"LDR %%r6, [%%r1];"
-				"ADDS %%r6, %%r6, %%r3;"
-				"ADC %%r2, $0;" //k
+			"LDR %%r6, [%%r1];"
+			"ADDS %%r6, %%r6, %%r3;"
+			"ADC %%r2, $0;" // Manage the carry
+			"STR %%r6, [%%r1];"
 
-				"STR %%r6, [%%r1];"
-				"MOV %%r3, %%r2;"
-				"ADD %%r4, %%r4, $4;"
-				"ADD %%r1, %%r1, $4;"
+			"MOV %%r3, %%r2;" // k = u
+			"ADD %%r4, %%r4, $4;" // Increase the addresses
+			"ADD %%r1, %%r1, $4;"
 
-				"SUB %%r6, %3, %%r1;"
-				"CBZ %%r6, EXIT_0;"
-				"B LOOP_0;"
-				"EXIT_0:"
-				"MOV %%r6, %4;"
-				"CBZ %%r6, EXIT_1;"
-				"STR %%r2, [%3];"
-				"EXIT_1:"
+			"SUB %%r6, %3, %%r1;" // Check for the exit loop condition
+			"CBZ %%r6, EXIT_0;"
+			"B LOOP_0;"
 
-				:
-				: "r" (op1), "r" (op2), "r" (op3), "r" (op5), "r" (ok_carry)
-				: "r1", "r2", "r3", "r4", "r6", "memory", "cc"
+			"EXIT_0:"
+			"MOV %%r6, %4;" // Check if the carry is included in the digits to be computed
+			"CBZ %%r6, EXIT_1;"
+			"STR %%r2, [%3];"
+			"EXIT_1:"
 
-		);
-	}
+			:
+			: "r" (op1), "r" (result_address), "r" (op2_address), "r" (result_address_limit), "r" (ok_carry)
+			: "r1", "r2", "r3", "r4", "r6", "memory", "cc"
+
+	);
+}
 
 #else
 

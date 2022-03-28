@@ -8,7 +8,9 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 {
    int oldused, min, max, i;
 #ifdef MP_32BIT
+#ifndef STM32
    mp_digit tmp, tmp0;
+#endif
 #endif
    mp_digit u;
    mp_err err;
@@ -49,56 +51,57 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 	limit_1 = min;
 	limit_2 = max-min+1;
 	__asm__ volatile (
-					"MOV %%r3, %0;"
-					"MOV %%r4, %1;"
-					"MOV %%r5, %2;"
-					"MOV %%r6, %3;"
+		// Load the variables in cpu registers
+		"MOV %%r3, %0;" // base_address_op1
+		"MOV %%r4, %1;" // base_address_op2
+		"MOV %%r5, %2;" // base_address_res
+		"MOV %%r6, %3;" // limit_1
 
+		"LDR %%r0, [%%r3];" // Load 1st operand
+		"LDR %%r1, [%%r4];" // Load 2nd operand
+		"ADDS %%r2, %%r0, %%r1;" // Perform the sum of the least significant digit
+		"STR %%r2, [%%r5];" // Store the result
 
-					"LDR %%r0, [%%r3];" // Load 1st operand
-					"LDR %%r1, [%%r4];" // Load 2nd operand
-					"ADDS %%r2, %%r0, %%r1 ;" // Perform the sum of the least significant digit
-					"STR %%r2, [%%r5];" // Store the result
+		"LOOP_1:" // Check for first loop exit condition
+		"SUB %%r6, %%r6, $1;"
+		"CBZ %%r6, EXIT_1;"
 
-					"LOOP_1:" // Check for loop limitation
-					"SUB %%r6, %%r6, $1;"
-					"CBZ %%r6, EXIT_1;"
+		"ADD %%r3, %%r3, $4;" // Increase the addresses
+		"ADD %%r4, %%r4, $4;"
+		"ADD %%r5, %%r5, $4;"
 
-					"ADD %%r3, %%r3, $4;" // Increase the addresses
-					"ADD %%r4, %%r4, $4;"
-					"ADD %%r5, %%r5, $4;"
+		"LDR %%r0, [%%r3];"
+		"LDR %%r1, [%%r4];"
+		"ADCS %%r2, %%r0, %%r1 ;" // Perform the sum, considering the carry from the previous one
+		"STR %%r2, [%%r5];"
+		"B LOOP_1;"
 
-					"LDR %%r0, [%%r3];"
-					"LDR %%r1, [%%r4];"
-					"ADCS %%r2, %%r0, %%r1 ;" // Perform the sum, considering the carry from the previous one
-					"STR %%r2, [%%r5];"
-					"B LOOP_1;"
+		"EXIT_1:"
+		"MOV %%r6, %4;" // limit_2
 
-					"EXIT_1:"
-					"MOV %%r6, %4;"
-					"LOOP_2:" // Now just the carry propagation has to be computed
-					"IT CC;"
-					"BCC EXIT_3;"
+		"LOOP_2:" // Now just the carry propagation has to be computed
+		"IT CC;" // Check if the carry is effectively 1, otherwise the computation is over
+		"BCC EXIT_3;"
 
-					"SUB %%r6, %%r6, $1;" // Check for end of loop
-					"CBZ %%r6, EXIT_2;"
-					"ADD %%r3, %%r3, $4;" // Increase the addresses
-					"ADD %%r5, %%r5, $4;"
-					"LDR %%r2, [%%r3];"
-					"ADCS %%r2, $0 ;"
-					"STR %%r2, [%%r5];"
-					"B LOOP_2;"
+		"SUB %%r6, %%r6, $1;" // Check for end of loop
+		"CBZ %%r6, EXIT_2;"
+		"ADD %%r3, %%r3, $4;" // Increase the addresses
+		"ADD %%r5, %%r5, $4;"
+		"LDR %%r2, [%%r3];"   // Add the carry
+		"ADCS %%r2, $0 ;"
+		"STR %%r2, [%%r5];"
+		"B LOOP_2;"
 
-					"EXIT_2:"
-					"ADD %%r5, %%r5, $4;"
-					"MOV %%r2, $1;"
-					"STR %%r2, [%%r5];"
-					"EXIT_3:"
+		"EXIT_2:"
+		"ADD %%r5, %%r5, $4;" // Propagate the last carry
+		"MOV %%r2, $1;"
+		"STR %%r2, [%%r5];"
+		"EXIT_3:"
 
-					:
-					:"r" (base_address_op1), "r" (base_address_op2),
-						 "r" (base_address_res), "r" (limit_1), "r" (limit_2)
-					: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "memory", "cc");
+		:
+		:"r" (base_address_op1), "r" (base_address_op2),
+			 "r" (base_address_res), "r" (limit_1), "r" (limit_2)
+		: "r0", "r1", "r2", "r3", "r4", "r5", "r6", "memory", "cc");
 #else
 
    /* zero the carry */
@@ -108,14 +111,17 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 		tmp0 = a->dp[i] + b->dp[i];
 		tmp = tmp0 + u;
 
+		// Check for carry
 		u = 0;
+		// It can derive from the sum of the 2 addends
 		if(tmp0 < a->dp[i]) {
 			u++;
 		}
-		if(tmp < tmp0) {
+
+		// or it can propagate from the previous digit computation
+		else if(tmp < tmp0) {
 			u++;
 		}
-		u = u%2;
 
 		c->dp[i] = tmp;
 #else
