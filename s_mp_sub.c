@@ -65,8 +65,6 @@ mp_err s_mp_sub(const mp_int *a, const mp_int *b, mp_int *c)
 		"MOV %%r6, %4;" // limit_2
 
 		"LOOP_2:" // Now just the carry propagation has to be computed
-		"IT CS;" // Check if the carry is effectively 0, otherwise the computation is over
-		"BCS EXIT_2;"
 
 		"SUB %%r6, %%r6, $1;" // Check for end of loop
 		"CBZ %%r6, EXIT_2;"

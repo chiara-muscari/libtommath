@@ -80,8 +80,6 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 		"MOV %%r6, %4;" // limit_2
 
 		"LOOP_2:" // Now just the carry propagation has to be computed
-		"IT CC;" // Check if the carry is effectively 1, otherwise the computation is over
-		"BCC EXIT_3;"
 
 		"SUB %%r6, %%r6, $1;" // Check for end of loop
 		"CBZ %%r6, EXIT_2;"
@@ -93,6 +91,8 @@ mp_err s_mp_add(const mp_int *a, const mp_int *b, mp_int *c)
 		"B LOOP_2;"
 
 		"EXIT_2:"
+		"IT CC;" // Check if the carry is effectively 1, otherwise the computation is over
+		"BCC EXIT_3;"
 		"ADD %%r5, %%r5, $4;" // Propagate the last carry
 		"MOV %%r2, $1;"
 		"STR %%r2, [%%r5];"
