@@ -3,6 +3,8 @@ import os
 import math
 from bitstring import BitArray
 import copy
+import sys
+from optparse import OptionParser
 
 
 def find_number_of_N_bits_digits(n, N):
@@ -65,6 +67,7 @@ def gen_operands_lists(log_total_num_bits_op1, log_total_num_bits_op2, num_bits_
 	op2 = []
 	res = []
 
+	# 
 	patterns_t = copy.deepcopy(patterns)
 	for i in range (num_tests):	
 		if len(patterns_t) > 0:	
@@ -86,8 +89,7 @@ def gen_operands_lists(log_total_num_bits_op1, log_total_num_bits_op2, num_bits_
 	return op1, op2, res
 
 
-
-def gen_h_file(num_bits, operands):
+def gen_h_file(num_bits, operands, operation):
 
 	OP1_NAME = "op1"
 	OP2_NAME = "op2"
@@ -95,21 +97,19 @@ def gen_h_file(num_bits, operands):
 
 	num_tests = operands["NUM_TESTS"]
 
-	# Assume numbers between 2**8 and 2**13 bits, so keep the range in [8, 13]
-	MIN_BIT_LENGTH_LOG = 12
-	MAX_BIT_LENGTH_LOG = 12
-
 	file_name = f"test_vec_{num_bits}.h"
-	path = os.path.join('reduction/', file_name)
+	path = operation+"/"
+	path = os.path.join(path, file_name)
 	fp = open(path, 'w')
 
 	header = ""
 	header += "#ifndef TEST_VEC_H_\n#define TEST_VEC_H_\n\n"
 	header += f"int num_tests = {num_tests};\n\n"
 
-	ndigop1 = f"int nDigop1[{num_tests*(MAX_BIT_LENGTH_LOG-MIN_BIT_LENGTH_LOG+1)}] = " + "{"
-	ndigop2 = f"int nDigop2[{num_tests*(MAX_BIT_LENGTH_LOG-MIN_BIT_LENGTH_LOG+1)}] = " + "{"
-	ndigres = f"int nDigres[{num_tests*(MAX_BIT_LENGTH_LOG-MIN_BIT_LENGTH_LOG+1)}] = " + "{"
+	num_tests_tot = len(operands["RES"])
+	ndigop1 = f"int nDigop1[{num_tests_tot}] = " + "{"
+	ndigop2 = f"int nDigop2[{num_tests_tot}] = " + "{"
+	ndigres = f"int nDigres[{num_tests_tot}] = " + "{"
 
 	for i in range (num_tests):	
 		a = operands["OP1"][i]
@@ -152,16 +152,29 @@ def gen_h_file(num_bits, operands):
 	fp.close()
 
 
-
 def main(): 
 
-	OPERATION = "%"
+	help_text = "Usage: python3 test_generator.py [options]\n\n" \
+				"Operation supported addition, subtraction, multiplication, integer division, reduction\n\n" \
+				"Example which outputs 100 tests for the sum operation, plus the random tests: " \
+				"python3 test_generator.py -O add -n 100 -p"
 
+	optparser = OptionParser(usage=help_text)
+	optparser.add_option("-O", "--operation", dest="operation_string", default="reduction", help="Operation to test (add, sub, mul, div, reduction)")
+	optparser.add_option("-n", "--number", type="int", dest="num_random_tests", default=10, help="Number of test vectors")
+	optparser.add_option("-p", "--pattern", action="store_true", dest="pattern_choice", default=False, help="Include tests with patters")
+	optparser.add_option("-N", "--log_bits", type="int", dest="bit_length_log", default=8, help="First operand will have 2**(bit_length_log+1) bits. Second operand will have 2**(bit_length_log) bits.")
+
+	(options, args) = optparser.parse_args()
+	operation_string = options.operation_string
+	num_random_tests = options.num_random_tests
+	pattern_choice = options.pattern_choice
 	# Assume numbers between 2**8 and 2**13 bits, so keep the range in [8, 13]
-	MIN_BIT_LENGTH_LOG = 8
-	MAX_BIT_LENGTH_LOG = 13
+	bit_length_log = options.bit_length_log
 
-	n_bits_per_digit = 28
+	operations_dict = {"add" : "+", "sub" : "-", "mul" : "*", "div" : "//", "reduction" : "%"}
+
+	operation = operations_dict[operation_string]
 
 	### Patterns:
 	patterns = []
@@ -200,24 +213,70 @@ def main():
 	patterns.append("11111110")	
 	###
 
-	num_tests = len(patterns) + 5
+	###################### Generate the header file for the 28-bit per digit version
+	n_bits_per_digit = 28
+
 	num_tests_tot = 0
 
 	op1_list = []
 	op2_list = []
 	res_list = []
 
-	for bit_length_log in range(MIN_BIT_LENGTH_LOG, MAX_BIT_LENGTH_LOG):
-		op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, n_bits_per_digit, OPERATION, patterns, num_tests)
+	if pattern_choice == True:
+	# Generate the tests with particular patterns
+		num_tests = len(patterns)
+
+		op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, n_bits_per_digit, operation, patterns, num_tests)
 		op1_list.extend(op1_tmp)
 		op2_list.extend(op2_tmp)
 		res_list.extend(res_tmp)
 		num_tests_tot += num_tests
 
+	# Generate the random tests
+	num_tests = num_random_tests
+	op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, n_bits_per_digit, operation, [], num_tests)
+	op1_list.extend(op1_tmp)
+	op2_list.extend(op2_tmp)
+	res_list.extend(res_tmp)
+	num_tests_tot += num_tests
+
 	operands = {"OP1" : op1_list, "OP2" : op2_list, "RES" : res_list, "NUM_TESTS" : num_tests_tot}
 
-	gen_h_file(n_bits_per_digit, operands)
+	gen_h_file(n_bits_per_digit, operands, operation_string)
 
+
+	####################### Generate the header file for the 32-bit per digit version
+	n_bits_per_digit = 32
+
+	num_tests_tot = 0
+
+	op1_list = []
+	op2_list = []
+	res_list = []
+
+	if pattern_choice == True:
+	# Generate the tests with particular patterns
+		num_tests = len(patterns)
+
+		op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, n_bits_per_digit, operation, patterns, num_tests)
+		op1_list.extend(op1_tmp)
+		op2_list.extend(op2_tmp)
+		res_list.extend(res_tmp)
+		num_tests_tot += num_tests
+
+	# Generate the random tests
+	num_tests = num_random_tests
+	op1_tmp, op2_tmp, res_tmp = gen_operands_lists(bit_length_log+1, bit_length_log, n_bits_per_digit, operation, [], num_tests)
+	op1_list.extend(op1_tmp)
+	op2_list.extend(op2_tmp)
+	res_list.extend(res_tmp)
+	num_tests_tot += num_tests
+
+	operands = {"OP1" : op1_list, "OP2" : op2_list, "RES" : res_list, "NUM_TESTS" : num_tests_tot}
+
+	gen_h_file(n_bits_per_digit, operands, operation_string)
+
+	
 
 if __name__ == '__main__':
     main()

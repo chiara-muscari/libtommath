@@ -116,7 +116,7 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
-
+  HAL_Delay(500);
 
 #ifdef TEST_REDUCTION
   enum reduction_type Reduction_type = standard;
@@ -298,7 +298,9 @@ static void MX_GPIO_Init(void)
 
 void test_barrett_reduction(enum reduction_type red_type)
 {
-	 char msg[200];
+	 char msg[500];
+	 uint32_t avg_num_cycles = 0;
+	 uint32_t passed_tests = 0;
 	   for(int j = 0; j < num_tests; j++) {
 			mp_int a, b, c, mu, P_p;
 			mp_err result;
@@ -367,7 +369,7 @@ void test_barrett_reduction(enum reduction_type red_type)
 				test_okay = 1;
 				for(int i = 0; i < a.used; i++) {
 					if(a.dp[i] != res[j][nDigres[j]-1-i]) {
-						snprintf(msg, sizeof(msg), "Test %d\ndifferent digit %u vs real one %u\r\n", j, res[j][nDigres[j]-1-i], a.dp[i]);
+						snprintf(msg, sizeof(msg), "Test %d: wrong!\r\n", j);
 						HAL_UART_Transmit(&huart2, (uint8_t *) msg, strlen(msg), 100);
 						test_okay = 0;
 						break;
@@ -375,14 +377,14 @@ void test_barrett_reduction(enum reduction_type red_type)
 				}
 			}
 			if(test_okay == 1) {
-				snprintf(msg, sizeof(msg), "Result is okay!\r\n");
+				snprintf(msg, sizeof(msg), "Test %d: okay! Elapsed n. of cycles for reduction: %ld\r\n", j, TIM2->CNT);
 				HAL_UART_Transmit(&huart2, (uint8_t *) msg, strlen(msg), 100);
-				snprintf(msg, sizeof(msg), "Time elapsed for reduction: %ld\r\n", TIM2->CNT);
-				HAL_UART_Transmit(&huart2, (uint8_t *) msg, strlen(msg), 100);
+				avg_num_cycles += TIM2->CNT;
+				passed_tests++;
 
 			}
 			else {
-				snprintf(msg, sizeof(msg), "Result is wrong!\r\n");
+				snprintf(msg, sizeof(msg), "Test %d: wrong!\r\n", j);
 				HAL_UART_Transmit(&huart2, (uint8_t *) msg, strlen(msg), 100);
 			}
 
@@ -392,7 +394,8 @@ void test_barrett_reduction(enum reduction_type red_type)
 			mp_clear(&mu);
 			mp_clear(&P_p);
 	  }
-		snprintf(msg, sizeof(msg), "Test ended!\r\n");
+	  avg_num_cycles /= passed_tests;
+		snprintf(msg, sizeof(msg), "Test ended! Average execution number of cycles: %ld\r\n", avg_num_cycles);
 		HAL_UART_Transmit(&huart2, (uint8_t *) msg, strlen(msg), 100);
 }
 
