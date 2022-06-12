@@ -33,9 +33,8 @@ mp_err s_mp_mul(const mp_int *a, const mp_int *b, mp_int *c, int digs)
    if ((err = mp_init_size(&t, digs)) != MP_OKAY) {
       return err;
    }
-   mp_zero(&t);
+   //mp_zero(&t);
    t.used = digs;
-
 
 #ifdef STM32
    /* Asm implementation of the under-mentioned multiplication algorithm */
@@ -133,7 +132,6 @@ mp_err s_mp_mul(const mp_int *a, const mp_int *b, mp_int *c, int digs)
          t.dp[ix + pb] = k;
       }
    }
-
 
 #endif
 

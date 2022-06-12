@@ -24,7 +24,10 @@ mp_err s_mp_div_school(const mp_int *a, const mp_int *b, mp_int *c, mp_int *d)
    bool neg;
    mp_err err;
 
-   mp_init(&temp);
+
+   if ((err = mp_init(&temp)) != MP_OKAY) {
+      return err;
+   }
    if ((err = mp_init_size(&q, a->used + 2)) != MP_OKAY) {
       return err;
    }
@@ -88,7 +91,6 @@ mp_err s_mp_div_school(const mp_int *a, const mp_int *b, mp_int *c, mp_int *d)
 
       /* while (q{i-t-1} * (yt * b + y{t-1})) >
                xi * b**2 + xi-1 * b + xi-2
-
          do q{i-t-1} -= 1;
       */
       q.dp[(i - t) - 1] = (q.dp[(i - t) - 1] + 1uL) & (mp_digit)MP_MASK;

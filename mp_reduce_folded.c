@@ -15,35 +15,28 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
    mp_int  q; // x_p;
    mp_err  err;
    int     um = m->used;
-/*
-   if(m->dp[m->used-1] >> 26 == 0) { // less bits than m->used * MP_DIGIT_BIT
-	   if(m->used % 2 != 0) { // odd number
-		   um--; //consider like one digit less
-	   }
-	   else { // even number
-		   um-=2; // consider like 2 digits less, in order to preserve eveness
-	   }
-   }
-   else { // bits number = m->used * MP_DIGIT_BIT
-	   if(m->used % 2 != 0) { // odd number
-		   um++; //consider one digit more
-	   }
-	   // if even, leave as it is
-   }
-   */
 
-   //if(m->used % 2 != 0)
-	   //um++;
+   // If the number of digits is odd, consider it as the immediately superior even number
+   if(m->used % 2 != 0)
+	   um++;
 
    int s = um/2;
    int s_3 = 3*s;
 
+   int e1, e3;
+   if(m->used % 2 != 0) {
+	   e1 = -2;
+	   e3 = 3;
+   }
+   else {
+	    e1 = -1;
+	    e3 = 2;
+   }
 
    /* q = x */
    if ((err = mp_init_copy(&q, x)) != MP_OKAY) {
       return err;
    }
-
 
    /* q = x / b**(k * 3 / 2)  */
    mp_rshd(&q, s_3);
@@ -62,35 +55,29 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
 		 goto LBL_ERR;
    }
 
-
    // From now on, it's like the standard reduce func
-
    mp_copy(x, &q);
 
-
-   /*q = floor(x_p / 2**um)*/
-   mp_rshd(&q, um-1); // TEST, um original value
+   mp_rshd(&q, um+e1);
 
    /* q = q * mu */
-
    //if ((err = mp_mul(&q, mu, &q)) != MP_OKAY) {
-   if ((err = s_mp_mul_high(&q, mu, &q, s+1)) != MP_OKAY) {
+   if ((err = s_mp_mul_high(&q, mu, &q, s+e3-1)) != MP_OKAY) {
 		 goto LBL_ERR;
    }
 
-   //mp_mul_v32_highNdigs(&q, mu, &q, s-1);
-
    /* q = q / b**(k/2) */
-   //mp_rshd(&q, s); TEST
-   mp_rshd(&q, s+2);
-
-
-   //mp_div(x, m, &q, NULL);
+   mp_rshd(&q, s+e3);
 
    /* q = q * m mod b**(k+2), quick (no division) */
    if ((err = s_mp_mul(&q, m, &q, um + 2)) != MP_OKAY) {
+	   goto LBL_ERR;
+   /*
+   if ((err = mp_mul(&q, m, &q)) != MP_OKAY) {
       goto LBL_ERR;
+   */
    }
+
 
    if ((err = mp_mod_2d(x, MP_DIGIT_BIT * (um + 2), x)) != MP_OKAY) {
       goto LBL_ERR;
@@ -125,6 +112,7 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
 #endif
    /* Back off if it's too big */
    while (mp_cmp(x, m) != MP_LT) {
+
       if ((err = mp_sub(x, m, x)) != MP_OKAY) {
          goto LBL_ERR;
       }
@@ -132,10 +120,8 @@ mp_err mp_reduce_folded(mp_int *x, const mp_int *m, const mp_int *mu, mp_int *pi
 
 LBL_ERR:
    mp_clear(&q);
-   //mp_clear(&x_p);
 
    return err;
 }
 
 #endif
-
